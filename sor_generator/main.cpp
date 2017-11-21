@@ -136,22 +136,6 @@ void CalcCircleCenter(double x1, double y1, double x2, double y2, double x3, dou
 	cx = (ma * mb * (y1 - y3) + mb * (x1 + x2) - ma *(x2 + x3)) / (2 * (mb - ma));
 	cy = -1.0 / ma * (cx - (x1 + x2) / 2) + (y1 + y2) / 2;
 
-
-	/*double xMid1 = (x1 + x2) / 2;
-	double yMid1 = (y1 + y2) / 2;
-	double xMid2 = (x2 + x3) / 2;
-	double yMid2 = (y2 + y3) / 2;
-
-
-	double slope1 = (x1 - x2) / (y2 - y1);
-	double slope2 = (x1 - x3) / (y3 - y1);
-
-	double perp1 = yMid1 - slope1 * xMid1;
-	double perp2 = yMid2 - slope2 * xMid2;
-
-	cx = (perp1 - perp2) / (slope2 - slope1);
-	cy = perp1 + (slope1 * cx);*/
-
 	radius = sqrt((cx - x1)*(cx - x1) + (cy - y1)*(cy - y1));
 }
 

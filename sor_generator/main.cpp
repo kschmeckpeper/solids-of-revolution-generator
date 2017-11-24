@@ -58,11 +58,6 @@ std::vector<TriMesh::VertexHandle> CreatePlane(TriMesh &mesh, double height, dou
 	std::vector<TriMesh::VertexHandle>  face_vhandles = { center_point, ring[num_divisions - 1], ring[0] };
 	mesh.add_face(face_vhandles);
 
-	/*for (int i = 2; i < num_radial_divisions; i++) {
-		std::vector<TriMesh::VertexHandle> new_ring = CreateRing(mesh, height, radius / num_radial_divisions * i, num_divisions);
-		ConnectRing(mesh, ring, new_ring);
-		ring = new_ring;
-	}*/
 	return ring;
 }
 
@@ -79,16 +74,17 @@ void CloseRing(TriMesh &mesh, std::vector<TriMesh::VertexHandle> &ring, double h
 	mesh.add_face(face2);
 }
 
-bool CreateSOR(std::string path, std::vector<double> radi, double height, int num_divisions, double thickness)
+bool CreateSOR(std::string path, std::vector<double> radi, double height, double bottom_elevation, int num_divisions, double thickness)
 {
 	TriMesh mesh;
 
 	// Creates the outside bottom
-	std::vector<TriMesh::VertexHandle> prev_ring = CreatePlane(mesh, - thickness, radi[0] + thickness, num_divisions);
+	std::vector<TriMesh::VertexHandle> prev_ring = CreatePlane(mesh, bottom_elevation - thickness, radi[0] + thickness, num_divisions);
 	// Creates the outside surface
-	double outside_height_step = (height + thickness) / (radi.size() - 1);
+	double outside_height_step = (height) / (radi.size() - 1);
 	for (int i = 1; i < radi.size(); i++) {
-		std::vector<TriMesh::VertexHandle> curr_ring = CreateRing(mesh, outside_height_step*i, radi[i] + thickness, num_divisions);
+		std::vector<TriMesh::VertexHandle> curr_ring = CreateRing(mesh, bottom_elevation + outside_height_step*i, 
+			radi[i] + thickness, num_divisions);
 		ConnectRing(mesh, prev_ring, curr_ring);
 		prev_ring = curr_ring;
 	}
@@ -96,11 +92,11 @@ bool CreateSOR(std::string path, std::vector<double> radi, double height, int nu
 	// Creates the inner surface
 	double inside_height_step = (height) / (radi.size() - 1);
 	for (int i = radi.size() - 1; i >= 0; i--) {
-		std::vector<TriMesh::VertexHandle> curr_ring = CreateRing(mesh, inside_height_step*i, radi[i], num_divisions);
+		std::vector<TriMesh::VertexHandle> curr_ring = CreateRing(mesh, bottom_elevation + inside_height_step*i, radi[i], num_divisions);
 		ConnectRing(mesh, prev_ring, curr_ring);
 		prev_ring = curr_ring;
 	}
-	CloseRing(mesh, prev_ring, 0);
+	CloseRing(mesh, prev_ring, bottom_elevation);
 
 	try
 	{
@@ -178,12 +174,13 @@ double fRand(double fMin, double fMax)
 int main(int argc, const char* argv[])
 {
 	const int num_divisions = 16;
-	const double thickness = 0.1;
+	const double thickness = 0.005;
 	std::string mesh_extension = ".obj";
 	std::string config_extension = ".cfg";
 
 
 	const double height = 1;
+	double bottom_elevation = 3.5 - height;
 
 	const double step_size = 0.1;
 	const double min = 0.3;
@@ -207,7 +204,8 @@ int main(int argc, const char* argv[])
 		}
 		printf("\n");
 
-		CreateSOR(path + mesh_extension, radi, height, num_divisions, thickness);
+		CreateSOR(path + mesh_extension, radi, height, 0, num_divisions, thickness);
+		CreateSOR(path +"_to_render_" + mesh_extension, radi, height, bottom_elevation, num_divisions, thickness);
 		WriteConfig(path + config_extension, neck_radius, max_radius, height);
 	}
 	

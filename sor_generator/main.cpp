@@ -125,17 +125,17 @@ bool CreateSOR(std::string path, std::vector<double> radi, double height, double
 	return WriteMeshToFile(path, mesh);
 }
 
-bool CreateBoundingMesh(std::string path, std::vector<double> radi, double height, double bottom_elevation, int num_divisions)
+bool CreateBoundingMesh(std::string path, std::vector<double> radi, double height, double bottom_elevation, int num_divisions, double thickness)
 {
 	TriMesh mesh;
 
 	// Creates the outside bottom
-	std::vector<TriMesh::VertexHandle> prev_ring = CreatePlane(mesh, bottom_elevation, radi[0], num_divisions);
+	std::vector<TriMesh::VertexHandle> prev_ring = CreatePlane(mesh, bottom_elevation-3*thickness, radi[0]+thickness, num_divisions);
 	// Creates the outside surface
 	double outside_height_step = (height) / (radi.size() - 1);
 	for (int i = 1; i < radi.size(); i++) {
 		std::vector<TriMesh::VertexHandle> curr_ring = CreateRing(mesh, bottom_elevation + outside_height_step*i,
-			radi[i], num_divisions);
+			radi[i]+thickness, num_divisions);
 		ConnectRing(mesh, prev_ring, curr_ring);
 		prev_ring = curr_ring;
 	}
@@ -190,6 +190,23 @@ std::vector<double> GenerateSinRadi(double step_size, double height, double a,
 	}
 
 
+	return radi;
+}
+
+std::vector<double> GenerateFlaskRadi(double step_size, double base_radius, double neck_radius,
+	double total_height, double neck_height)
+{
+	std::vector<double> radi;
+	
+	for (double y = 0; y < total_height; y += step_size) {
+		if (y < total_height - neck_height) {
+			double height_fraction = y / (total_height - neck_height);
+			radi.push_back(base_radius - (base_radius - neck_radius) * height_fraction);
+		}
+		else {
+			radi.push_back(neck_radius);
+		}
+	}
 	return radi;
 }
 
@@ -292,7 +309,7 @@ int main(int argc, const char* argv[])
 
 		double area = calc_area(radi, height);
 		CreateSOR(path + mesh_extension, radi, height, 0, num_divisions, thickness);
-		CreateBoundingMesh(path + "_bounding" + mesh_extension, radi, height, 0, num_divisions);
+		CreateBoundingMesh(path + "_bounding" + mesh_extension, radi, height, 0, num_divisions, thickness);
 		CreateSOR(render_path + mesh_extension, radi, height, bottom_elevation, num_divisions, thickness);
 		std::vector<std::string> extra_config_lines = { "neck_radius: " + std::to_string(neck_radius),
 			"base_radius: " + std::to_string(base_radius) };
@@ -317,7 +334,7 @@ int main(int argc, const char* argv[])
 				printf("\n");
 				double area = calc_area(radi, step_size);
 				CreateSOR(path + mesh_extension, radi, height, 0, num_divisions, thickness);
-				CreateBoundingMesh(path + "_bounding" + mesh_extension, radi, height, 0, num_divisions);
+				CreateBoundingMesh(path + "_bounding" + mesh_extension, radi, height, 0, num_divisions, thickness);
 				CreateSOR(render_path + mesh_extension, radi, height, bottom_elevation, num_divisions, thickness);
 				std::vector<std::string> extra_config_lines = { 
 					"Radius given by a*sin(b*y + c) + d"
@@ -330,26 +347,34 @@ int main(int argc, const char* argv[])
 		}
 	}
 
+	// Generates flasks
+	for (double base_radius = 0.25; base_radius < 1; base_radius *= 1.5) {
+		for (double neck_radius = 0.05; neck_radius < base_radius; neck_radius *= 1.5) {
+			for (double neck_height = 0.1; neck_height < 0.75; neck_height *= 1.5) {
+				std::string path = base_path + std::to_string(count);
+				std::string render_path = base_render_path + std::to_string(count);
+				count++;
 
-	/*for (int i = 0; i < 10; i++) {
-		std::string path = base_path + std::to_string(i);
-		double base_radius = fRand(min, max);
-		double center_radius = fRand(min, max);;
-		double neck_radius = fRand(min, max);
-		double min_radius = std::min(base_radius, std::min(center_radius, neck_radius));
-		double max_radius = std::max(base_radius, std::max(center_radius, neck_radius));
-		std::vector<double> radi = GenerateCircleRadi(step_size, height, base_radius, center_radius, neck_radius);
-
-		printf("Radi: ");
-		for (int i = 0; i < radi.size(); i++) {
-			printf("%f ", radi[i]);
+				std::vector<double> radi = GenerateFlaskRadi(step_size, base_radius, neck_radius, height, neck_height);
+				
+				printf("Radi: ");
+				for (int i = 0; i < radi.size(); i++) {
+					printf("%f ", radi[i]);
+				}
+				printf("\n");
+				double area = calc_area(radi, step_size);
+				CreateSOR(path + mesh_extension, radi, height, 0, num_divisions, thickness);
+				CreateBoundingMesh(path + "_bounding" + mesh_extension, radi, height, 0, num_divisions, thickness);
+				CreateSOR(render_path + mesh_extension, radi, height, bottom_elevation, num_divisions, thickness);
+				std::vector<std::string> extra_config_lines = {
+					"Radius of type flask"
+					"base_radius: " + std::to_string(base_radius),
+					"neck_radius: " + std::to_string(neck_radius),
+					"neck_height: " + std::to_string(neck_height) };
+				WriteConfig(path + config_extension, neck_radius, base_radius, height, area, extra_config_lines);
+			}
 		}
-		printf("\n");
-
-		CreateSOR(path + mesh_extension, radi, height, 0, num_divisions, thickness);
-		CreateSOR(path +"_to_render_" + mesh_extension, radi, height, bottom_elevation, num_divisions, thickness);
-		WriteConfig(path + config_extension, neck_radius, max_radius, height);
-	}*/
+	}
 	
 
 	system("pause");
